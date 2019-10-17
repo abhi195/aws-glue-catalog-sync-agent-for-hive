@@ -1,7 +1,6 @@
 package com.amazonaws.services.glue.catalog;
 
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
-import static org.apache.hadoop.hive.ql.exec.DDLTask.appendSerdeParams;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,9 +9,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.metastore.TableType;
-import org.apache.hadoop.hive.metastore.Warehouse;
 import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.metastore.api.Order;
 import org.apache.hadoop.hive.metastore.api.SerDeInfo;
@@ -22,13 +19,15 @@ import org.apache.hadoop.hive.ql.metadata.Hive;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer;
 import org.apache.hadoop.hive.serde.serdeConstants;
-import org.apache.hive.common.util.HiveStringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.stringtemplate.v4.ST;
 
 public class HiveUtils {
 	private static final Logger LOG = LoggerFactory.getLogger(HiveUtils.class);
+
+	public static final String DEFAULT_SERIALIZATION_FORMAT = "1";
+	public static final String[] TABLE_PARAMS_STATS_KEYS = new String[]{"COLUMN_STATS_ACCURATE", "numFiles", "totalSize", "numRows", "rawDataSize", "numPartitions"};
 
 	// Copied from Hive's code, it's a private function so had to copy it instead of
 	// reusing.
@@ -101,7 +100,8 @@ public class HiveUtils {
 			}
 			// For cases where the table is external
 			String tbl_external = "";
-			if (tbl.getTableType() == TableType.EXTERNAL_TABLE) {
+			if (tbl.getTableType() == TableType.EXTERNAL_TABLE
+					|| tbl.getTableType() == TableType.MANAGED_TABLE) {
 				duplicateProps.add("EXTERNAL");
 				tbl_external = "EXTERNAL ";
 			}
@@ -200,7 +200,7 @@ public class HiveUtils {
 				// If serialization.format property has the default value, it will not to be
 				// included in
 				// SERDE properties
-				if (Warehouse.DEFAULT_SERIALIZATION_FORMAT
+				if (DEFAULT_SERIALIZATION_FORMAT
 						.equals(serdeParams.get(serdeConstants.SERIALIZATION_FORMAT))) {
 					serdeParams.remove(serdeConstants.SERIALIZATION_FORMAT);
 				}
@@ -227,7 +227,7 @@ public class HiveUtils {
 			tbl_location = tbl_location.replaceFirst("s3[a,n]://", "s3://");
 
 			// Table properties
-			duplicateProps.addAll(Arrays.asList(StatsSetupConst.TABLE_PARAMS_STATS_KEYS));
+			duplicateProps.addAll(Arrays.asList(TABLE_PARAMS_STATS_KEYS));
 			String tbl_properties = propertiesToString(tbl.getParameters(), duplicateProps);
 
 			createTab_stmt.add(TEMPORARY, tbl_temp);
@@ -251,6 +251,19 @@ public class HiveUtils {
 		}
 
 		return retVal;
+	}
+
+	protected static StringBuilder appendSerdeParams(
+			StringBuilder builder, Map<String, String> serdeParam) {
+		serdeParam = new TreeMap<String, String>(serdeParam);
+		builder.append("WITH SERDEPROPERTIES ( \n");
+		List<String> serdeCols = new ArrayList<String>();
+		for (Map.Entry<String, String> entry : serdeParam.entrySet()) {
+			serdeCols.add("  '" + entry.getKey() + "'='"
+					+ HiveStringUtils.escapeHiveCommand(entry.getValue()) + "'");
+		}
+		builder.append(org.apache.commons.lang.StringUtils.join(serdeCols, ", \n")).append(')');
+		return builder;
 	}
 
 }
