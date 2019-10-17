@@ -34,8 +34,12 @@ If you install the `HiveGlueCatalogSyncAgent-1.1-SNAPSHOT.jar` into your cluster
 * Log4J
 * SLF4J
 * AWS Java SDK Core
-* org.antlr.stringtemplate
-* com.amazonaws.athena.jdbc.atl-athena-jdbc-driver, version 1.0.2-atlassian-1 or higher
+* org.antlr.stringtemplate:3.2.1
+* org.apache.hive:hive-common:1.1.1
+* org.apache.hive:hive-exec:1.1.1
+* org.apache.hadoop:hadoop-common:2.6.0-cdh5.12.0
+* org.apache.hive:hive-metastore:1.1.1
+
 * AWS Java SDK CloudWatch Logs
 
 ## Configuration Instructions
@@ -135,6 +139,8 @@ Add the following keys to hive-site-xml:
 - `glue.catalog.dropTableIfExists` - Should an already existing table be dropped and created (default: true)
 - `glue.catalog.createMissingDB` - Should DBs be created if they don't exist (default:true)
 - `glue.catalog.athena.suppressAllDropEvents` - prevents propagation of DropTable and DropPartition events to the remote environment
+- `glue.catalog.db.whitelist` - comma separated list of DBs to capture events from
+- `slack.notify.webhook` - Slack webhook URL for receiving notifications of events
 
 
 Add the Glue Sync Agent's jar to HMS' classpath and restart.
